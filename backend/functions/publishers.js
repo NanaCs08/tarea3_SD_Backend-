@@ -2,16 +2,15 @@ const mongoose = require('mongoose');
 const Publisher = require('../models/Publisher');
 require('dotenv').config();
 
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+// Conectar a MongoDB (solo se conecta si aún no está conectado)
+if (mongoose.connection.readyState === 0) {
+    mongoose.connect(process.env.MONGODB_URI); // Sin opciones adicionales
+  }
 
 exports.handler = async function(event, context) {
   try {
     const method = event.httpMethod;
 
-    // GET - Listar todos los publishers
     if (method === 'GET') {
       const publishers = await Publisher.find();
       return {
@@ -20,7 +19,6 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // POST - Agregar un nuevo publisher
     if (method === 'POST') {
       const data = JSON.parse(event.body);
       const newPublisher = new Publisher(data);
@@ -31,10 +29,8 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // PUT - Actualizar un publisher existente
     if (method === 'PUT') {
-      const { id } = JSON.parse(event.body);
-      const updateData = JSON.parse(event.body);
+      const { id, ...updateData } = JSON.parse(event.body);
       const updatedPublisher = await Publisher.findByIdAndUpdate(id, updateData, { new: true });
       return {
         statusCode: 200,
@@ -42,7 +38,6 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // DELETE - Eliminar un publisher
     if (method === 'DELETE') {
       const { id } = JSON.parse(event.body);
       await Publisher.findByIdAndDelete(id);
@@ -52,7 +47,6 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // Método no permitido
     return {
       statusCode: 405,
       body: JSON.stringify({ message: 'Método no permitido' })

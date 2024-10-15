@@ -1,12 +1,6 @@
 [build]
   functions = "functions"
-  command = "npm install && npm run build"
-  publish = "public"
-
-[dev]
-  framework = "#custom"
-  command = "npm start"
-  port = 8888
+  command = "npm install"
 
 [[redirects]]
   from = "/api/*"
