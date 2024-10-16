@@ -4,10 +4,24 @@ require('dotenv').config();
 
 // Conectar a MongoDB (solo se conecta si aún no está conectado)
 if (mongoose.connection.readyState === 0) {
-    mongoose.connect(process.env.MONGODB_URI); // Sin opciones adicionales
-  }
+    mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+}
 
 exports.handler = async function(event, context) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: 'OK'
+    };
+  }
+
   try {
     const method = event.httpMethod;
 
@@ -15,6 +29,7 @@ exports.handler = async function(event, context) {
       const publishers = await Publisher.find();
       return {
         statusCode: 200,
+        headers,
         body: JSON.stringify(publishers)
       };
     }
@@ -25,6 +40,7 @@ exports.handler = async function(event, context) {
       const savedPublisher = await newPublisher.save();
       return {
         statusCode: 201,
+        headers,
         body: JSON.stringify(savedPublisher)
       };
     }
@@ -34,6 +50,7 @@ exports.handler = async function(event, context) {
       const updatedPublisher = await Publisher.findByIdAndUpdate(id, updateData, { new: true });
       return {
         statusCode: 200,
+        headers,
         body: JSON.stringify(updatedPublisher)
       };
     }
@@ -43,17 +60,20 @@ exports.handler = async function(event, context) {
       await Publisher.findByIdAndDelete(id);
       return {
         statusCode: 204,
+        headers,
         body: JSON.stringify({ message: 'Publisher eliminado exitosamente' })
       };
     }
 
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ message: 'Método no permitido' })
     };
   } catch (error) {
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ error: error.message })
     };
   }
