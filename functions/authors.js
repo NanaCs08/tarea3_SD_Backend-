@@ -4,34 +4,51 @@ require('dotenv').config();
 
 // Conectar a MongoDB (solo se conecta si aún no está conectado)
 if (mongoose.connection.readyState === 0) {
-    mongoose.connect(process.env.MONGODB_URI); // Sin opciones adicionales
+    mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 }
 
 exports.handler = async function(event, context) {
+  // Configurar encabezados de CORS
+  const headers = {
+    'Access-Control-Allow-Origin': '*', // Permitir todos los orígenes
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', // Métodos permitidos
+    'Access-Control-Allow-Headers': 'Content-Type' // Encabezados permitidos
+  };
+
+  // Manejar solicitud OPTIONS para CORS
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: 'OK'
+    };
+  }
+
   try {
     const method = event.httpMethod;
     const path = event.path;
     const id = path.split('/').pop(); // Extrae el último segmento de la URL
 
     if (method === 'GET') {
-        if (id && id !== 'authors') { // Verifica si el ID no es la palabra 'authors'
-            // Obtener autor por ID
+        if (id && id !== 'authors') { // Verifica si el ID no es 'authors'
             const author = await Author.findById(id);
             if (!author) {
                 return {
                   statusCode: 404,
+                  headers,
                   body: JSON.stringify({ message: 'Autor no encontrado' })
                 };
             }
             return {
               statusCode: 200,
+              headers,
               body: JSON.stringify(author)
             };
         } else {
-            // Obtener todos los autores
             const authors = await Author.find();
             return {
               statusCode: 200,
+              headers,
               body: JSON.stringify(authors)
             };
         }
@@ -43,6 +60,7 @@ exports.handler = async function(event, context) {
         const savedAuthor = await newAuthor.save();
         return {
           statusCode: 201,
+          headers,
           body: JSON.stringify(savedAuthor)
         };
     }
@@ -51,6 +69,7 @@ exports.handler = async function(event, context) {
         if (!id || id === 'authors') {
             return {
               statusCode: 400,
+              headers,
               body: JSON.stringify({ message: 'ID de autor requerido para actualizar' })
             };
         }
@@ -59,11 +78,13 @@ exports.handler = async function(event, context) {
         if (!updatedAuthor) {
             return {
               statusCode: 404,
+              headers,
               body: JSON.stringify({ message: 'Autor no encontrado' })
             };
         }
         return {
           statusCode: 200,
+          headers,
           body: JSON.stringify(updatedAuthor)
         };
     }
@@ -72,6 +93,7 @@ exports.handler = async function(event, context) {
         if (!id || id === 'authors') {
             return {
               statusCode: 400,
+              headers,
               body: JSON.stringify({ message: 'ID de autor requerido para eliminar' })
             };
         }
@@ -79,22 +101,26 @@ exports.handler = async function(event, context) {
         if (!deletedAuthor) {
             return {
               statusCode: 404,
+              headers,
               body: JSON.stringify({ message: 'Autor no encontrado' })
             };
         }
         return {
           statusCode: 204,
+          headers,
           body: JSON.stringify({ message: 'Autor eliminado exitosamente' })
         };
     }
 
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ message: 'Método no permitido' })
     };
   } catch (error) {
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ error: error.message })
     };
   }

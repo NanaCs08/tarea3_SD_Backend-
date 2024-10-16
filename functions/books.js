@@ -1,13 +1,29 @@
 const mongoose = require('mongoose');
-const Book = require('../models/Book'); // Asegúrate de que el nombre del archivo y la ruta sean correctos
+const Book = require('../models/Book');
 require('dotenv').config();
 
 // Conectar a MongoDB (solo se conecta si aún no está conectado)
 if (mongoose.connection.readyState === 0) {
-    mongoose.connect(process.env.MONGODB_URI);
+    mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 }
 
 exports.handler = async function(event, context) {
+  // Configurar los encabezados de CORS para todas las respuestas
+  const headers = {
+    'Access-Control-Allow-Origin': '*', // Permitir todos los orígenes
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', // Métodos permitidos
+    'Access-Control-Allow-Headers': 'Content-Type' // Encabezados permitidos
+  };
+
+  // Manejar las solicitudes OPTIONS preflight para CORS
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: 'OK'
+    };
+  }
+
   try {
     const method = event.httpMethod;
 
@@ -17,6 +33,7 @@ exports.handler = async function(event, context) {
         console.log("Libros recuperados:", books);
         return {
           statusCode: 200,
+          headers,
           body: JSON.stringify(books)
         };
     }
@@ -28,6 +45,7 @@ exports.handler = async function(event, context) {
         const savedBook = await newBook.save();
         return {
           statusCode: 201,
+          headers,
           body: JSON.stringify(savedBook)
         };
     }
@@ -38,6 +56,7 @@ exports.handler = async function(event, context) {
         const updatedBook = await Book.findOneAndUpdate({ id: id }, updateData, { new: true });
         return {
           statusCode: 200,
+          headers,
           body: JSON.stringify(updatedBook)
         };
     }
@@ -48,17 +67,20 @@ exports.handler = async function(event, context) {
         await Book.findOneAndDelete({ id: id });
         return {
           statusCode: 204,
+          headers,
           body: JSON.stringify({ message: 'Book eliminado exitosamente' })
         };
     }
 
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ message: 'Método no permitido' })
     };
   } catch (error) {
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ error: error.message })
     };
   }
