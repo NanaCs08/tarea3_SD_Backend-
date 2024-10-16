@@ -10,10 +10,11 @@ if (mongoose.connection.readyState === 0) {
 exports.handler = async function(event, context) {
   try {
     const method = event.httpMethod;
-    const id = event.queryStringParameters && event.queryStringParameters.id;
+    const path = event.path;
+    const id = path.split('/').pop(); // Extrae el último segmento de la URL
 
     if (method === 'GET') {
-        if (id) {
+        if (id && id !== 'authors') { // Verifica si el ID no es la palabra 'authors'
             // Obtener autor por ID
             const author = await Author.findById(id);
             if (!author) {
@@ -47,7 +48,7 @@ exports.handler = async function(event, context) {
     }
 
     if (method === 'PUT') {
-        if (!id) {
+        if (!id || id === 'authors') {
             return {
               statusCode: 400,
               body: JSON.stringify({ message: 'ID de autor requerido para actualizar' })
@@ -68,7 +69,7 @@ exports.handler = async function(event, context) {
     }
 
     if (method === 'DELETE') {
-        if (!id) {
+        if (!id || id === 'authors') {
             return {
               statusCode: 400,
               body: JSON.stringify({ message: 'ID de autor requerido para eliminar' })
