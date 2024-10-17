@@ -48,7 +48,6 @@ exports.handler = async function(event, context) {
     }
 
     if (method === 'PUT') {
-      // Actualizar un autor existente
       const { id, ...updateData } = JSON.parse(event.body);
       const updatedAuthor = await Author.findByIdAndUpdate(id, updateData, { new: true });
       if (!updatedAuthor) {
@@ -64,6 +63,7 @@ exports.handler = async function(event, context) {
         body: JSON.stringify(updatedAuthor)
       };
     }
+    
 
     if (method === 'DELETE') {
       // Eliminar un autor
