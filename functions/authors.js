@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const amqp = require('amqplib'); // Para conectar a RabbitMQ
 const Author = require('../models/Author'); // Asegúrate de tener un modelo adecuado para Author
 require('dotenv').config();
 
@@ -7,18 +8,34 @@ if (mongoose.connection.readyState === 0) {
     mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 }
 
+// Función para conectar y enviar mensajes a RabbitMQ
+async function sendToQueue(message) {
+  try {
+    const connection = await amqp.connect(process.env.CLOUDAMQP_URL);
+    const channel = await connection.createChannel();
+    await channel.assertQueue('bookstore', { durable: true });
+    channel.sendToQueue('bookstore', Buffer.from(JSON.stringify(message)), {
+      persistent: true,
+    });
+    await channel.close();
+    await connection.close();
+  } catch (err) {
+    console.error('Error enviando mensaje a RabbitMQ', err);
+  }
+}
+
 exports.handler = async function(event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type',
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers,
-      body: 'OK'
+      body: 'OK',
     };
   }
 
@@ -31,7 +48,7 @@ exports.handler = async function(event, context) {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify(authors)
+        body: JSON.stringify(authors),
       };
     }
 
@@ -40,10 +57,14 @@ exports.handler = async function(event, context) {
       const data = JSON.parse(event.body);
       const newAuthor = new Author(data);
       const savedAuthor = await newAuthor.save();
+      
+      // Enviar mensaje a RabbitMQ para operación 'add'
+      await sendToQueue({ action: 'add', entity: 'author', data: savedAuthor });
+      
       return {
         statusCode: 201,
         headers,
-        body: JSON.stringify(savedAuthor)
+        body: JSON.stringify(savedAuthor),
       };
     }
 
@@ -54,16 +75,19 @@ exports.handler = async function(event, context) {
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ message: 'Autor no encontrado' })
+          body: JSON.stringify({ message: 'Autor no encontrado' }),
         };
       }
+      
+      // Enviar mensaje a RabbitMQ para operación 'update'
+      await sendToQueue({ action: 'update', entity: 'author', data: updatedAuthor });
+      
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify(updatedAuthor)
+        body: JSON.stringify(updatedAuthor),
       };
     }
-    
 
     if (method === 'DELETE') {
       // Eliminar un autor
@@ -73,26 +97,30 @@ exports.handler = async function(event, context) {
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ message: 'Autor no encontrado' })
+          body: JSON.stringify({ message: 'Autor no encontrado' }),
         };
       }
+      
+      // Enviar mensaje a RabbitMQ para operación 'delete'
+      await sendToQueue({ action: 'delete', entity: 'author', id });
+      
       return {
         statusCode: 204,
         headers,
-        body: JSON.stringify({ message: 'Autor eliminado exitosamente' })
+        body: JSON.stringify({ message: 'Autor eliminado exitosamente' }),
       };
     }
 
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ message: 'Método no permitido' })
+      body: JSON.stringify({ message: 'Método no permitido' }),
     };
   } catch (error) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message }),
     };
   }
 };
